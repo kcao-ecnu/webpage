@@ -1,0 +1,573 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style type="text/css">
+      body {
+	font-family: Georgia, "Times New Roman", Times, serif;
+	font-size: 14pt;
+}
+    </style>
+  <script type="text/javascript"
+      src="https://maps.googleapis.com/maps/api/js?v=3.2">
+    </script>
+    </script><script type="text/javascript" src="lib/markerclusterer.js"></script><script type="text/javascript" src="lib/oms.min.js">
+    </script><script type="text/javascript" src="lib/timeline/timeline.js"></script>
+    <link rel="stylesheet" type="text/css" href="lib/timeline/timeline.css"><script type="text/javascript">
+
+    var g_mainmapheight = 480;var g_mainmapwidth = 918;var g_spreadsheet_id = "od6";
+    var g_spreadsheet_key  = "0AnFdxd_W6-gvdDZ4WDRsSm1tNTRoMkFlR2Uyc3dMTkE";var g_spreadsheet_linkurl = "linkurl";
+	var g_spreadsheet_info = "info";var g_spreadsheet_lat = "lat";var g_spreadsheet_lng = "lon";var g_spreadsheet_name = "name";
+    var g_spreadsheet_hdl = "hdl";var g_spreadsheet_startyear = "startyear";var g_spreadsheet_endyear = "endyear";
+    var g_spreadsheet_start = "start"; var g_spreadsheet_end = "end"; var g_spreadsheet_markers = []; 
+    var g_spreadsheet_markers_info = [];var g_spreadsheet_mc = null;var g_spreadsheet_json = null;
+    var g_spreadsheet_json_date = [];var g_mainmap = null; var g_mapcenter = new google.maps.LatLng(0, 0); 
+    var g_mapzoom = 2; var g_timeline = null; 
+    var g_itemssindex = []; var g_rdmarkers = [g_rdmarkernum];
+    var g_rdmarkertitle = [g_rdmarkernum];var g_rdmarkernum = 100;
+    var g_rdmc = null;var g_mainmarker = null;
+    var g_mainmarkerpos = new google.maps.LatLng(35.86166009254603, 104.19539708644151);var g_markerinfocontroldiv = null; 
+    var g_controlui = null; var g_controltext = null; var g_controlclose = null; 
+
+	function Initialize()
+    {
+      InitMap();       var buttonmapviewreset = document.getElementById("button_mapview_reset");
+    	buttonmapviewreset.onclick = OnClickButtonResetMapView;
+
+      InitMarkerInfoControl(); 
+      GetSpreadSheetJSON();     }
+    
+    function OnClickButtonResetMapView()
+    {
+    	g_mainmap.setCenter(g_mapcenter);
+    	g_mainmap.setZoom(g_mapzoom);
+    }
+
+        function InitMap()
+    {
+        	var mapoptions =
+      {
+        center: g_mapcenter,
+        zoom: g_mapzoom,
+        panControl: false,
+        zoomControl: true,
+        zoomControlOptions:
+        {
+          position: google.maps.ControlPosition.TOP_RIGHT,
+          style: google.maps.ZoomControlStyle.SMALL,
+        },
+        mapTypeControl: true,
+        scaleControl: false,
+        streetViewControl: false,
+        overviewMapControl: false,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+      };
+      var mainmapdiv = document.getElementById("google_map");
+      mainmapdiv.style.height = g_mainmapheight + 'px';
+      mainmapdiv.style.width = g_mainmapwidth + 'px';
+      
+      g_mainmap = new google.maps.Map(mainmapdiv, mapoptions);
+	  
+    }
+    function InitMarkerInfoControl()
+    {
+    	g_markerinfocontroldiv = document.createElement('div');
+      g_markerinfocontroldiv.style.display = 'none'; 
+      CreateMarkerInfoControl(); 
+      
+      g_markerinfocontroldiv.index = 1;
+      g_mainmap.controls[google.maps.ControlPosition.LEFT_TOP].push(g_markerinfocontroldiv);
+    }
+
+    function CreateMarkerInfoControl()
+    {
+      g_controlui = document.createElement('div');
+      g_controlui.style.backgroundColor = 'black';
+      g_controlui.style.borderStyle = 'solid';
+      g_controlui.style.borderWidth = '0px';
+      g_controlui.style.borderColor = 'white';
+      
+      g_controlui.style.filter = 'alpha(opacity=50)'; 
+      g_controlui.style.opacity = 0.5; 
+      
+      g_controlui.style.height = g_mainmapheight + 'px';
+      g_controlui.style.width = g_mainmapwidth / 3 + 'px';
+      g_markerinfocontroldiv.appendChild(g_controlui);
+
+      g_controlclose = document.createElement('div');
+      g_controlclose.style.fontFamily = 'Arial,sans-serif';
+      g_controlclose.style.fontSize = '15px';
+      g_controlclose.style.textAlign = 'right';
+      g_controlclose.style.color = '#F75000';
+      g_controlclose.innerHTML = 'close';
+      g_controlclose.cursor = 'hand';
+      g_controlui.appendChild(g_controlclose);
+
+      g_controltext = document.createElement('div');
+      g_controltext.style.fontFamily = 'Arial,sans-serif';
+      g_controltext.style.fontSize = '15px';
+      g_controltext.style.color = '#FFFFFF';
+      g_controltext.style.paddingLeft = '4px';
+      g_controltext.style.paddingRight = '10px';
+      g_controlui.appendChild(g_controltext);
+
+//      google.maps.event.addDomListener(g_controlclose, 'click', function()
+//      {
+//        g_markerinfocontroldiv.style.display = 'none';
+//      });
+    }
+
+    function InitRDMarkers()
+    {
+    	google.maps.event.addListenerOnce(g_mainmap, 'bounds_changed', function()
+      {
+        var bounds = g_mainmap.getBounds();
+        var southWest = bounds.getSouthWest();
+        var northEast = bounds.getNorthEast();
+        var latSpan = northEast.lat() - southWest.lat();
+        var lngSpan = northEast.lng() - southWest.lng();
+
+        for (var i = 0; i < g_rdmarkernum; i++)
+        {
+          var lat = southWest.lat() + latSpan * Math.random();
+          var lng = southWest.lng() + lngSpan * Math.random();
+          var latlng = new google.maps.LatLng(lat, lng);
+          g_rdmarkertitle[i] = GetRandomString(10);
+          g_rdmarkers[i] = new google.maps.Marker
+          ({
+            position: latlng,
+            title: g_rdmarkertitle[i],
+          });
+
+//          google.maps.event.addListener(g_rdmarkers[i], 'click', OnClickRDMarker.bind(i));
+        }
+
+        var clusterstyles =
+        [
+        {
+          opt_textColor: 'white',
+          url: 'res/cluster_small.png',
+          height: 26,
+          width: 30
+        },
+        {
+          opt_textColor: 'white',
+          url: 'res/cluster_medium.png',
+          height: 35,
+          width: 40
+        },
+        {
+          opt_textColor: 'white',
+          url: 'res/cluster_large.png',
+          height: 44,
+          width: 50
+        }
+        ];
+        var mcoptions =
+        {
+          gridSize: 60,
+          styles: clusterstyles,
+          maxZoom: 14
+        };
+        g_rdmc = new MarkerClusterer(g_mainmap, g_rdmarkers, mcoptions);
+      });
+    }
+
+//    function OnClickRDMarker(index)
+//    {
+//      g_controltext.innerHTML = g_rdmarkertitle[index];
+//      g_markerinfocontroldiv.style.display = 'inline';
+//    }
+
+//    function InitMainMarker()
+//    {
+    
+
+//      g_mainmarker = new google.maps.Marker
+//      ({
+//        position: g_mainmarkerpos,
+//        draggable:true,
+//        map: g_mainmap,
+//        animation: google.maps.Animation.BOUNCE,
+//        title:"hi"
+//      });
+	  
+	  
+	  
+
+//      google.maps.event.addListener(g_mainmarker, 'click', OnClickMainMarker);
+//    }
+
+
+//    function OnClickMainMarker()
+//    {
+//      if(g_mainmarker.getAnimation() == google.maps.Animation.BOUNCE)
+//      {
+//        g_mainmarker.setAnimation(google.maps.Animation.DROP);
+//      }
+//      else if(g_mainmarker.getAnimation() == null)
+//      {
+//        g_mainmarker.setAnimation(google.maps.Animation.BOUNCE);
+//      }
+//    }
+
+    function GetSpreadSheetJSON()
+    {
+      var script = document.createElement('script');
+      script.setAttribute('src', 'https://spreadsheets.google.com/feeds/list'
+        + '/' + g_spreadsheet_key + '/' + g_spreadsheet_id + '/public/values' +
+        '?alt=json-in-script&callback=HandleSpreadSheetJSON');
+      script.setAttribute('id', 'jsonScript');
+      script.setAttribute('type', 'text/javascript');
+      document.documentElement.firstChild.appendChild(script);
+    }
+
+    function HandleSpreadSheetJSON(json)
+    {
+    	g_spreadsheet_json = json;
+    	
+    	var oms = new OverlappingMarkerSpiderfier(g_mainmap,
+    	{
+    		keepSpiderfied: true,
+    	});
+    	var iw = new google.maps.InfoWindow();
+      oms.addListener('click', function(marker)
+      {
+//        iw.setContent(marker.desc);
+//        iw.open(g_mainmap, marker);
+  
+    	  g_mainmap.setZoom(6);
+          g_mainmap.setCenter(marker.getPosition());
+  
+      });
+    	
+      for(var i = 0; i < g_spreadsheet_json.feed.entry.length; i++)
+      {
+        var entry = g_spreadsheet_json.feed.entry[i]; 
+        if(entry["gsx$" + g_spreadsheet_lat])
+        {
+          var lat = parseFloat(entry["gsx$" + g_spreadsheet_lat].$t);
+          var lng = parseFloat(entry["gsx$" + g_spreadsheet_lng].$t);
+          var point = new google.maps.LatLng(lat, lng);
+          
+          var namepart = (entry["gsx$"+g_spreadsheet_name].$t == "-") ? "Unknown" : entry["gsx$"+g_spreadsheet_name].$t; 
+          var hdlpart = (entry["gsx$"+g_spreadsheet_hdl].$t == "-") ? "" : entry["gsx$"+g_spreadsheet_hdl].$t;
+
+          var titlepart = namepart 
+
+          g_spreadsheet_markers[i] = new google.maps.Marker
+          ({
+            position: point,
+            title: titlepart,
+            map: g_mainmap,
+          });
+          
+ g_spreadsheet_markers_info[i] = "<font color='white' size= '2' ><center><b>"+namepart + "<br>" + hdlpart + "</b></center></font>" + "<br/>" + "<br/>" + "<a href='"+ entry["gsx$"+g_spreadsheet_linkurl].$t + "' target='_blank' ><font color='white' size='1'><center>Please Click Here to View the Website</center></font></a>" + "<br/>" + "<br/>" + entry["gsx$"+g_spreadsheet_info].$t;
+
+
+          oms.addMarker(g_spreadsheet_markers[i]);
+          
+          var start = (entry["gsx$" + g_spreadsheet_start].$t == "-") ? 0 : (entry["gsx$" + g_spreadsheet_start].$t);
+          var end = (entry["gsx$" + g_spreadsheet_end].$t == "-") ? 0 : (entry["gsx$" + g_spreadsheet_end].$t);
+          var startyear = (entry["gsx$" + g_spreadsheet_startyear].$t == "-") ? 0 : (entry["gsx$" + g_spreadsheet_startyear].$t);
+          var endyear = (entry["gsx$" + g_spreadsheet_endyear].$t == "-") ? 0 : (entry["gsx$" + g_spreadsheet_endyear].$t);
+          
+		  
+		  var startdate = null;
+          var enddate = null;
+          
+          g_itemssindex[i] = i;
+
+          
+          if( start != 0 )
+          {
+          	startdate = new Date(startyear,parseInt(start),GetDecimalPart(start));
+          }
+          
+          if( end != 0 )
+          {
+          	enddate = new Date(endyear,parseInt(end),GetDecimalPart(end));
+          }
+          
+          if( startdate == null && enddate != null )
+          {
+          	g_spreadsheet_json_date[i] =
+          	{
+              'start': enddate, 
+              'content': titlepart,
+            }
+          }
+          else
+          {
+          	if( startdate != null && enddate == null )
+          	{
+          		g_spreadsheet_json_date[i] =
+          	  {
+                'start': startdate, 
+                'content': titlepart,
+              }
+          	}
+          	else
+          	{
+          	  if( startdate != null && enddate != null )
+          	  {
+          	  	g_spreadsheet_json_date[i] =
+          	    {
+                  'start': startdate, 
+                  'end': enddate,
+                  
+                  'content': titlepart,
+                }
+          	  }
+          	}
+          }
+
+
+//          google.maps.event.addListener(g_spreadsheet_markers[i], 'click', OnClickSpreadSheetMarker.bind(i));
+        }
+      }
+      
+      var clusterstyles =
+      [
+      {
+        opt_textColor: 'white',
+        url: 'res/cluster_small.png',
+        height: 53,
+        width: 52
+      },
+      {
+        opt_textColor: 'white',
+        url: 'res/cluster_medium.png',
+        height: 56,
+        width: 55
+      },
+      {
+        opt_textColor: 'white',
+        url: 'res/cluster_large.png',
+        height: 66,
+        width: 65
+      }
+      ];
+      
+      var mcoptions =
+      {
+        gridSize: 60, 
+        styles: clusterstyles,
+        maxZoom: 14
+      };
+      
+      g_spreadsheet_mc = new MarkerClusterer(g_mainmap, g_spreadsheet_markers, mcoptions); 
+      
+      InitTimeLine(); 
+      
+      google.maps.event.addListener(g_mainmap, 'idle', OnMapIdle);
+	  
+	  
+    }
+
+    function OnClickSpreadSheetMarker(index)
+    {
+      g_controltext.innerHTML = g_spreadsheet_markers_info[index];
+      g_markerinfocontroldiv.style.display = 'inline';
+    }
+    
+    
+    function InitTimeLine()
+    {
+      options =
+      {
+        "width":  "100%",
+        "height": "200px", 
+        "style": "dot", 
+        "editable": false,
+        "cluster": true, 
+      };
+
+      
+      g_timeline = new links.Timeline(document.getElementById('time_line'));
+      links.events.addListener(g_timeline, 'rangechanged', OnRangeChanged);
+      links.events.addListener(g_timeline, 'select', OnSelect);
+      g_timeline.draw(g_spreadsheet_json_date, options);
+      g_timeline.setVisibleChartRangeAuto();
+      
+      var buttontimelinereset = document.getElementById("button_timeline_reset");
+    	buttontimelinereset.onclick = OnClickButtonResetTimeLine;
+    }
+    
+    function OnRangeChanged()
+    {
+      var currange = g_timeline.getVisibleChartRange();
+      var markertoshow = [];
+      var markerindex = 0;
+      for(var i = 0; i < g_spreadsheet_json_date.length; ++i)
+      {
+      	if( g_spreadsheet_json_date[i].start >= currange.start && g_spreadsheet_json_date[i].start <= currange.end )
+      	{
+      		markertoshow[markerindex] = g_spreadsheet_markers[i];
+      		++markerindex;
+      	}
+      }
+      for(var i = g_spreadsheet_json_date.length; i < g_spreadsheet_markers.length; ++i)
+      {
+      	markertoshow[markerindex] = g_spreadsheet_markers[i];
+      	++markerindex;
+      }
+      
+      g_spreadsheet_mc.clearMarkers();
+      g_spreadsheet_mc.addMarkers(markertoshow);
+      g_spreadsheet_mc.redraw();
+    }
+    
+    function OnSelect()
+    {
+    	var sel = g_timeline.getSelection();
+      if( sel.length )
+      {
+        if( sel[0].row != undefined ) 
+        {
+          var row = sel[0].row;
+          OnClickSpreadSheetMarker(g_itemssindex[row]);
+        }
+      }
+    }
+    
+    function OnClickButtonResetTimeLine()
+    {
+    	g_timeline.setVisibleChartRangeAuto();
+    }
+    
+    function OnMapIdle()
+    {
+    	var viewbounds = g_mainmap.getBounds();
+    	var itemtoshow = [];
+    	var itemindex = 0;
+    	
+    	for(var i = 0; i < g_spreadsheet_json_date.length; ++i)
+    	{
+    		var p = g_spreadsheet_markers[i].getPosition();
+    		if( viewbounds.contains(p) )
+    		{
+    			g_itemssindex[itemindex] = i;
+    			itemtoshow[itemindex] = g_spreadsheet_json_date[i];
+    			++itemindex;
+    			
+    			continue;
+    		}
+    	}
+    	
+    	g_timeline.setData(itemtoshow);
+    	g_timeline.redraw();
+      g_timeline.setVisibleChartRangeAuto();
+    }
+
+    function GetRandomString(length)
+    {
+      var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+
+      if(!length)
+      {
+        length = Math.floor(Math.random() * chars.length);
+      }
+
+      var str = '';
+      for(var i = 0; i < length; i++)
+      {
+        str += chars[Math.floor(Math.random() * chars.length)];
+      }
+
+      return str;
+    }
+    
+    function GetDecimalPart(str)
+    {
+    	for(var i = 0; i < str.length; ++i)
+    	{
+    		if( str[i] == '.' )
+    		{
+    			return parseInt(str.substring(i + 1));
+    		}
+    	}
+    }
+
+
+if(!Function.prototype.bind) {
+  Function.prototype.bind = function()
+    {
+      var __method = this;
+      var arg = arguments;
+      return function()
+      {
+          __method.apply(window, arg);
+      }
+  }
+}
+
+    google.maps.event.addDomListener(window, 'load', Initialize);
+	
+	
+
+    </script>
+
+
+
+
+
+
+
+
+
+<title>Kai Cao's Home Page</title><link rel="stylesheet" href="./About%20Me_files/bar.css" type="text/css"><link rel="stylesheet" href="./About%20Me_files/main.css" type="text/css"><link rel="stylesheet" href="./About%20Me_files/content.css" type="text/css"><link rel="stylesheet" href="./About%20Me_files/person.css" type="text/css">
+
+<link rel="shortcut icon" type="image/x-icon" href="./About%20Me_files/webicon.jpg" media="screen" />
+
+</head>
+<body id="top"><div id="header"><div id="nav"><ul>
+      <li><a class="item" href="./index.htm">Home</a></li>
+      <li><a class="item" href="./research.htm">Research</a></li>
+      <li><a class="item" href="./education.htm">Education</a></li>
+<li><a class="item" href="./others.htm">Others</a></li></ul></div></div>
+
+
+
+<div id="container">
+<div>
+  <div class="head" align="center"><img src="About Me_files/middle_3_small.jpg" width="180" height="189"></div><div class="info">
+    <div id="name"><strong>Kai Cao (曹凯), Ph.D.</strong></div>
+      <div id="cv"><strong>Professor</strong><br>
+School of Geographic Sciences<br>
+East China Normal University<br>
+500 Dongchuan Road, Shanghai 200241, China <br>
+    </div>
+      <div class="clear"></div>
+  <div id="cv"></div><div class="clear"></div><ul id="social"><li><a href="mailto:kcao@geo.ecnu.edu.cn" target="_blank" id="email_link" info="Send Email to Me"><img style="border: 0px solid ; width: 60px; height: 60px;" alt="" src="About Me_files/email8.png"></a></li><li><a href="http://www.linkedin.com/pub/kai-cao/22/84a/565" target="_blank" info="View My Linkedin Page"><img style="border: 0px solid ; width: 60px; height: 60px;" alt="" src="./About%20Me_files/linkedin4.png"></a></li><li><a info="View My Google Scholar Citation" href="http://scholar.google.com/citations?user=1Q-gHjIAAAAJ" target="_blank"><img style="border: 0px solid ; width: 60px; height: 60px;" alt="" src="./About%20Me_files/google.png"></a></li></ul></div><div class="clear"></div></div>
+      
+
+<h2>Short Bio</h2>   
+<hr>
+<div class="sec_content">
+<p> Dr. Kai Cao currently is a Professor and Zijiang Outstanding Young Scholar in the School of Geographic Sciences at East China Normal University (ECNU). Dr. Cao obtained his B.S. degree and Master degree by research in GIS from Nanjing University, and his Ph.D. degree in Geography from The Chinese University of Hong Kong, respectively. Dr. Cao’s research interests primarily center on Geographic Information Science and the applications, especially on the topics of Spatial Optimization, Spatial Big Data Analytics and Spatially Integrated Social Sciences (e.g., ageing and health related fields). </p>
+<p> In addition to numerous research articles published in various reputable internationally refereed journals, he had also organized and co-edited a few special issues on spatial optimization related topics with some prestigious journals, i.e., IJGIS, TGIS, EPB. In addition, he had also been co-editor of a reference work in GIS by Elsevier “Comprehensive GIS” on the third volume “GIS Application for Socio-Economics and Humanity”. Currently, he is also serving on the Editorial Board of "Computers, Environment and Urban Systems" and as Topic Editor of "ISPRS International Journal of Geo-Information". Moreover, he had been serving as a Board Member of the International Association of Chinese Professionals in GIS (CPGIS) and Chair of the Newsletter Committee. He had also served as a Steering Committee Member of the Next Age Institute at the National University of Singapore and a Committee Member of National Geographic’s Committee for Science and Exploration.</p>
+<p><strong> I am seeking postdocs and graduate students to work with me at ECNU, please contact me via kcao@geo.ecnu.edu.cn if you are interested.</strong></p>
+</div>      
+
+<h2>Academic Appointments</h2>
+<hr>
+
+<div class="sec_content">
+<li>Professor, School of Geographic Sciences, East China Normal University (2021/7-Present)</li>
+<li>Assistant Professor and Director, SMT Programme, Singapore Management University, Singapore (2020-2021)</li>
+<li>Lecturer, Department of Geography, National University of Singapore, Singapore (2014-2019)</li>
+</div>					  		
+					  	
+					  		
+<h2>Education</h2>
+<hr>
+
+<div class="sec_content">
+<li>Ph.D., Geography and Planning, Department of Geography and Resource Management, CUHK, Hong Kong SAR (2007-2010)</li>
+<li>M.S., Geographic Information Science, Nanjing University, China (2004-2007)</li>
+<li>B.S., Geographic Information Ssience, Nanjing University, China (2000-2004)</li>
+</div>
+				  			
+	
+	
+</body>
+</html>

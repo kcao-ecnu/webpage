@@ -1,0 +1,10 @@
+.sec_content {
+	padding: 5px 10px 5px 20px;
+	color: #343434;/* font-family: Georgia, Serif;*/
+	font-size: 14px;
+	line-height: 1.5;
+	position: relative;
+	text-align: justify;
+}.sec_content p {
+	line-height: 1.5;
+}
