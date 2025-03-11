@@ -1,0 +1,3 @@
+[submodule "CKK"]
+	path = CKK
+	url = https://github.com/gchenjiachen/CKK.git

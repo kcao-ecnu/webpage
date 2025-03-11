@@ -1,0 +1,6 @@
+[build]
+publish = "." # 网站文件的目录
+functions = "netlify/functions" # 无服务函数目录
+
+[functions]
+node_bundler = "esbuild" # 使用 ESBuild 打包函数
